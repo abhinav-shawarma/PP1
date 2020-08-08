@@ -50,7 +50,7 @@ url = 'https://api.nasa.gov/mars-photos/api/v1/rovers/{}/photos?&api_key={}&eart
     rover, api_key, random_date)
 
 # MAKE REQUEST
-logger.debug('HTTP GET: {}'.format(url))
+logger.info('HTTP GET: {}'.format(url))
 
 # response = requests.get(url)
 # if response.status_code != 200:  # check that the API call worked and exit if it didn't
@@ -65,10 +65,11 @@ photo = random.choice(response_json['photos'])
 camera_name = photo['camera']['full_name']
 photo_date = photo['earth_date']
 image_url = photo['img_src']
-
-logger.info('Selected [{}] photo taken on [{}]'.format(
-    camera_name, photo_date))
 logger.debug('Image URL: {}'.format(image_url))
+
+message = '{} rover {} taken {}'.format(
+    rover.capitalize(), camera_name, photo_date)
+logger.debug(message)
 
 # image = requests.get(img_url).content  # fetch the source image
 # NB: if we are using lambda we may need to write out the file
@@ -77,6 +78,7 @@ logger.debug('Image URL: {}'.format(image_url))
 #     return True
 # TODO: need to check image size as some which come back are too small to post
 
+logger.info('Posting to facebook!')
 # post using the facebook graph API python module
 # https://facebook-sdk.readthedocs.io/en/latest/api.html
-# GraphAPI(access_token=fb_access_token).put_photo(image=image, message=name)  # make fb post
+# GraphAPI(access_token=fb_access_token).put_photo(image=image, message=message)  # make fb post
