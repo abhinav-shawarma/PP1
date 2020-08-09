@@ -1,16 +1,34 @@
 import requests
 import random
 import logging
+import time
 from datetime import datetime, date, timedelta
-from mock_response import response_json  # for testing only
+# from mock_response import response_json  # for testing only
 
-# init logger, can switch this to logging.INFO to suppress logging when we deploy
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('rover-bot')
 
+
+def get_photo(rover, date):
+    api_key = 'DEMO_KEY'  # keep this a secret, shouldn't be in the public repository
+    url = 'https://api.nasa.gov/mars-photos/api/v1/rovers/{}/photos?&api_key={}&earth_date={}'.format(
+        rover, api_key, date)
+
+    # MAKE REQUEST
+    logger.info('HTTP GET: {}'.format(url))
+
+    response = requests.get(url)
+    if response.status_code != 200:  # check that the API call worked and exit if it didn't
+        logger.error(response.text())
+        exit(1)
+    response_json = response.json()
+
+    return random.choice(response_json['photos'])
+
+
 # SET VARIABLES
-api_key = 'DEMO_KEY'  # keep this a secret, shouldn't be in the public repository
-fb_access_token = '<paintmin bot access token here>'  # this one too
+# keep this a secret, shouldn't be in the public repository
+fb_access_token = '<paintmin bot access token here>'
 rover_names = ['curiosity', 'opportunity', 'spirit']
 
 # date info from https://en.wikipedia.org/wiki/Mars_rover
@@ -32,43 +50,43 @@ valid_dates = {
 
 # BUILD REQUEST
 
-# choose a rover
-rover = random.choice(rover_names)
+photo = None
+while photo is None:
+    # choose a rover
+    # rover = random.choice(rover_names)
+    rover = 'curiosity'  # curiosity has the best images
 
-# choose a date
-start_date = valid_dates[rover]['min']
-end_date = valid_dates[rover]['max']
-time_between_dates = end_date - start_date
-days_between_dates = time_between_dates.days
-random_number_of_days = random.randrange(days_between_dates)
-random_date = start_date + timedelta(days=random_number_of_days)
+    # choose a date
+    start_date = valid_dates[rover]['min']
+    end_date = valid_dates[rover]['max']
+    time_between_dates = end_date - start_date
+    days_between_dates = time_between_dates.days
+    random_number_of_days = random.randrange(days_between_dates)
+    random_date = start_date + timedelta(days=random_number_of_days)
 
-logger.debug('Searching for image from [{}] taken on [{}]'.format(
-    rover, random_date))
+    logger.debug('Searching for image from [{}] taken on [{}]'.format(
+        rover, random_date))
 
-url = 'https://api.nasa.gov/mars-photos/api/v1/rovers/{}/photos?&api_key={}&earth_date={}'.format(
-    rover, api_key, random_date)
-
-# MAKE REQUEST
-logger.info('HTTP GET: {}'.format(url))
-
-# response = requests.get(url)
-# if response.status_code != 200:  # check that the API call worked and exit if it didn't
-#     logger.error(response.text())
-#     exit(1)
-# response_json = response.json()
-
-photo = random.choice(response_json['photos'])
+    try:
+        photo = get_photo(rover, random_date)
+        camera_name = photo['camera']['full_name']
+        photo_date = photo['earth_date']
+        image_url = photo['img_src']
+        logger.info('Image URL: {}'.format(image_url))
+        img = requests.get(image_url).content
+        img_size = len(img)
+        if len(img) < 30000:
+            logger.info(
+                'Image was too small {} bytes, trying again in 10s...'.format(img_size))
+            photo = None
+            time.sleep(10)
+    except IndexError:
+        logger.info('No images for search criteria, trying again in 10s...')
+        time.sleep(10)
 
 # POST TO FB
 
-camera_name = photo['camera']['full_name']
-photo_date = photo['earth_date']
-image_url = photo['img_src']
-logger.debug('Image URL: {}'.format(image_url))
-
-message = '{} rover {} taken {}'.format(
-    rover.capitalize(), camera_name, photo_date)
+message = '{} {}'.format(camera_name, photo_date)
 logger.debug(message)
 
 # image = requests.get(img_url).content  # fetch the source image
@@ -76,7 +94,6 @@ logger.debug(message)
 # with open("/tmp/image", 'wb') as f:
 #     f.write(requests.get(img_url).content)
 #     return True
-# TODO: need to check image size as some which come back are too small to post
 
 logger.info('Posting to facebook!')
 # post using the facebook graph API python module
