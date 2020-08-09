@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import json
-from PIL import Image
 import requests
 import logging
 from datetime import date
@@ -37,6 +36,7 @@ def main():
     try:
         caption = result['title']
         image_url = result['hdurl']
+        description = result['explanation']
     except KeyError:
         logger.error("Invalid parameter.")
         exit(1)
@@ -47,6 +47,8 @@ def main():
 
     with open(filename, 'wb') as f:
         f.write(requests.get(image_url).content)
+    #Caption including the image description.
+    caption = caption + '\n' + description
     
     post_to_facebook(filename, caption)
 
